@@ -1,0 +1,140 @@
+.dashboard h1 {
+  margin-bottom: 2rem;
+  color: #333;
+}
+
+.summary-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.summary-card {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.summary-card.income {
+  border-left: 4px solid #4CAF50;
+}
+
+.summary-card.expense {
+  border-left: 4px solid #f44336;
+}
+
+.summary-card.balance.positive {
+  border-left: 4px solid #2196F3;
+}
+
+.summary-card.balance.negative {
+  border-left: 4px solid #f44336;
+}
+
+.summary-card h3 {
+  color: #666;
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+}
+
+.summary-card .amount {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #333;
+  margin: 0.5rem 0;
+}
+
+.summary-card .count {
+  color: #999;
+  font-size: 0.85rem;
+}
+
+.recent-movements {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.recent-movements h2 {
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+.empty-state {
+  text-align: center;
+  color: #999;
+  padding: 2rem;
+}
+
+.movements-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.movement-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-radius: 5px;
+  background-color: #f9f9f9;
+}
+
+.movement-item.income {
+  border-left: 3px solid #4CAF50;
+}
+
+.movement-item.expense {
+  border-left: 3px solid #f44336;
+}
+
+.movement-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.movement-info .category {
+  font-weight: 600;
+  color: #333;
+}
+
+.movement-info .description {
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.movement-info .date {
+  color: #999;
+  font-size: 0.85rem;
+}
+
+.movement-amount {
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+.movement-item.income .movement-amount {
+  color: #4CAF50;
+}
+
+.movement-item.expense .movement-amount {
+  color: #f44336;
+}
+
+.loading {
+  text-align: center;
+  padding: 2rem;
+  color: #666;
+}
+
+@media (max-width: 768px) {
+  .summary-cards {
+    grid-template-columns: 1fr;
+  }
+}
