@@ -47,4 +47,8 @@ npm start
 
 ## Endpoints
 
-Ver documentación completa en el README principal.
+Ver documentación completa en el README principal. En resumen, además de autenticación/movimientos:
+
+- Informes semanal/mensual/rango (JSON)
+- Exportación a PDF para informes (semanal/mensual/rango)
+- Perfil de usuario editable (incluye `currency`)

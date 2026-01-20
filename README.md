@@ -1,17 +1,20 @@
-# 💰 Money Tracker
+# Money Tracker
 
 Aplicación de gestión personal de gastos e ingresos con arquitectura API-first.
 
-## 📋 Características
+## Características
 
 - **Autenticación JWT**: Registro e inicio de sesión seguro
 - **Gestión de Movimientos**: CRUD completo para gastos e ingresos
-- **Informes**: Generación de informes semanales y mensuales
+- **Informes**: Semanal, mensual y por rango de fechas
+- **Exportación a PDF**: Informes semanal, mensual y por rango
+- **Preferencias de usuario**: Edición de perfil y divisa de trabajo
+- **Dashboard visual**: Gráfica diaria del mes en curso (ingresos/gastos + balance acumulado)
 - **Notificaciones por Email**: Envío automático de informes periódicos
 - **Frontend Responsive**: Interfaz web moderna y adaptable
 - **API REST**: Preparada para consumo desde aplicaciones móviles
 
-## 🏗️ Arquitectura
+## Arquitectura
 
 - **Backend**: Node.js + Express + PostgreSQL
 - **Frontend**: React + Vite
@@ -20,7 +23,7 @@ Aplicación de gestión personal de gastos e ingresos con arquitectura API-first
 - **Tareas Programadas**: node-cron para envío de emails
 - **Contenedores**: Docker y Docker Compose
 
-## 🚀 Inicio Rápido (Desarrollo Local)
+## Inicio rápido (desarrollo local)
 
 ### Prerrequisitos
 
@@ -45,7 +48,7 @@ Aplicación de gestión personal de gastos e ingresos con arquitectura API-first
 3. **Iniciar con Docker Compose**
 
    ```bash
-   docker-compose up -d
+   docker compose up -d
    ```
 
    Esto iniciará:
@@ -58,7 +61,7 @@ Aplicación de gestión personal de gastos e ingresos con arquitectura API-first
    Las migraciones se ejecutan automáticamente al iniciar el backend. Si necesitas ejecutarlas manualmente:
 
    ```bash
-   docker-compose exec backend npm run migrate
+   docker compose exec backend npm run migrate
    ```
 
 5. **Acceder a la aplicación**
@@ -89,17 +92,19 @@ npm install
 npm run dev
 ```
 
-## 📡 API Endpoints
+## API Endpoints
 
 ### Autenticación
 
 - `POST /api/auth/register` - Registro de usuario
 - `POST /api/auth/login` - Inicio de sesión
 - `GET /api/auth/profile` - Obtener perfil (requiere autenticación)
+- `PUT /api/auth/profile` - Actualizar perfil (name, email, password opcional, currency) (requiere autenticación)
 
 ### Movimientos
 
 - `GET /api/movements` - Listar movimientos (requiere autenticación)
+- `GET /api/movements?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD` - Listar por rango de fechas (requiere autenticación)
 - `POST /api/movements` - Crear movimiento (requiere autenticación)
 - `GET /api/movements/:id` - Obtener movimiento (requiere autenticación)
 - `PUT /api/movements/:id` - Actualizar movimiento (requiere autenticación)
@@ -109,8 +114,12 @@ npm run dev
 
 - `GET /api/reports/weekly` - Informe semanal (requiere autenticación)
 - `GET /api/reports/monthly` - Informe mensual (requiere autenticación)
+- `GET /api/reports/range?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD` - Informe por rango (requiere autenticación)
+- `GET /api/reports/weekly/pdf` - Informe semanal PDF (requiere autenticación)
+- `GET /api/reports/monthly/pdf` - Informe mensual PDF (requiere autenticación)
+- `GET /api/reports/range/pdf?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD` - Informe por rango PDF (requiere autenticación)
 
-## 🐳 Despliegue en Producción
+## Despliegue en producción
 
 ### Construir imágenes Docker
 
@@ -207,7 +216,7 @@ volumes:
   postgres_data:
 ```
 
-## 📧 Configuración de Email
+## Configuración de email
 
 Para que las tareas programadas envíen emails, necesitas configurar:
 
@@ -218,7 +227,7 @@ Las tareas programadas están configuradas para:
 - **Informes semanales**: Cada lunes a las 9:00 AM
 - **Informes mensuales**: El día 1 de cada mes a las 9:00 AM
 
-## 📱 Preparado para Móvil
+## Preparado para móvil
 
 La API REST está diseñada para ser consumida por aplicaciones móviles. Todos los endpoints requieren autenticación mediante JWT en el header:
 
@@ -226,7 +235,7 @@ La API REST está diseñada para ser consumida por aplicaciones móviles. Todos 
 Authorization: Bearer <token>
 ```
 
-## 🛠️ Tecnologías Utilizadas
+## Tecnologías utilizadas
 
 ### Backend
 - Node.js
@@ -237,12 +246,14 @@ Authorization: Bearer <token>
 - express-validator
 - node-cron
 - nodemailer
+- pdfkit
 
 ### Frontend
 - React
 - Vite
 - React Router
 - Axios
+- Recharts
 - CSS3
 
 ### DevOps
@@ -250,7 +261,7 @@ Authorization: Bearer <token>
 - Docker Compose
 - Nginx (producción)
 
-## 📝 Estructura del Proyecto
+## Estructura del proyecto
 
 ```
 money-tracker/
@@ -280,13 +291,13 @@ money-tracker/
 └── README.md
 ```
 
-## 🔒 Seguridad
+## Seguridad
 
 - Contraseñas hasheadas con bcrypt
 - Autenticación JWT
 - Validación de datos de entrada
 - Protección de rutas con middleware de autenticación
 
-## 📄 Licencia
+## Licencia
 
 Este proyecto es de código abierto y está disponible bajo la licencia MIT.
