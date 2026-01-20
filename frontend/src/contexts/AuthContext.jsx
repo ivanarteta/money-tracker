@@ -37,6 +37,12 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const updateProfile = async (updates) => {
+    const response = await api.put('/auth/profile', updates);
+    setUser(response.data);
+    return response.data;
+  };
+
   const login = async (email, password) => {
     const response = await api.post('/auth/login', { email, password });
     const { token, user } = response.data;
@@ -62,7 +68,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, updateProfile }}>
       {children}
     </AuthContext.Provider>
   );

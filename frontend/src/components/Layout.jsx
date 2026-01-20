@@ -12,7 +12,7 @@ const Layout = () => {
       <nav className="navbar">
         <div className="nav-container">
           <Link to="/" className="logo">
-            💰 Money Tracker
+            Money Tracker
           </Link>
           <div className="nav-links">
             <Link
@@ -32,6 +32,12 @@ const Layout = () => {
               className={location.pathname === '/reports' ? 'active' : ''}
             >
               Informes
+            </Link>
+            <Link
+              to="/settings"
+              className={location.pathname === '/settings' ? 'active' : ''}
+            >
+              Ajustes
             </Link>
           </div>
           <div className="user-menu">

@@ -1,4 +1,4 @@
-FROM node:18-alpine AS builder
+FROM node:18-bullseye-slim AS builder
 
 WORKDIR /app
 
@@ -6,7 +6,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Instalar dependencias
-RUN npm ci
+RUN npm install --include=optional --no-audit --no-fund
 
 # Copiar código fuente
 COPY . .

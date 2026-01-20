@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
+import { formatMoney } from '../utils/money';
 import './Movements.css';
 
 const Movements = () => {
+  const { user } = useAuth();
   const [movements, setMovements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -192,10 +195,10 @@ const Movements = () => {
             <div key={movement.id} className={`movement-card ${movement.type}`}>
               <div className="movement-header">
                 <div className="movement-type-badge">
-                  {movement.type === 'income' ? '💰 Ingreso' : '💸 Gasto'}
+                  {movement.type === 'income' ? 'Ingreso' : 'Gasto'}
                 </div>
                 <div className="movement-amount">
-                  {movement.type === 'income' ? '+' : '-'}${parseFloat(movement.amount).toFixed(2)}
+                  {movement.type === 'income' ? '+' : '-'}{formatMoney(movement.amount, user?.currency)}
                 </div>
               </div>
               <div className="movement-body">

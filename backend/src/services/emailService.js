@@ -33,7 +33,7 @@ export const sendReportEmail = async (user, report) => {
     <body>
       <div class="container">
         <div class="header">
-          <h1>💰 Informe ${periodLabel}</h1>
+          <h1>Informe ${periodLabel}</h1>
         </div>
         <div class="content">
           <p>Hola <strong>${user.name}</strong>,</p>

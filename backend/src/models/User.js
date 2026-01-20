@@ -2,11 +2,11 @@ import pool from '../config/database.js';
 import bcrypt from 'bcryptjs';
 
 export class User {
-  static async create(email, password, name) {
+  static async create(email, password, name, currency = 'EUR') {
     const hashedPassword = await bcrypt.hash(password, 10);
     const result = await pool.query(
-      'INSERT INTO users (email, password, name) VALUES ($1, $2, $3) RETURNING id, email, name, created_at',
-      [email, hashedPassword, name]
+      'INSERT INTO users (email, password, name, currency) VALUES ($1, $2, $3, $4) RETURNING id, email, name, currency, created_at',
+      [email, hashedPassword, name, currency]
     );
     return result.rows[0];
   }
@@ -21,8 +21,45 @@ export class User {
 
   static async findById(id) {
     const result = await pool.query(
-      'SELECT id, email, name, created_at FROM users WHERE id = $1',
+      'SELECT id, email, name, currency, created_at FROM users WHERE id = $1',
       [id]
+    );
+    return result.rows[0];
+  }
+
+  static async updateById(id, updates) {
+    const fields = [];
+    const values = [];
+    let paramIndex = 1;
+
+    if (updates.email !== undefined) {
+      fields.push(`email = $${paramIndex++}`);
+      values.push(updates.email);
+    }
+    if (updates.name !== undefined) {
+      fields.push(`name = $${paramIndex++}`);
+      values.push(updates.name);
+    }
+    if (updates.currency !== undefined) {
+      fields.push(`currency = $${paramIndex++}`);
+      values.push(updates.currency);
+    }
+    if (updates.password !== undefined) {
+      const hashedPassword = await bcrypt.hash(updates.password, 10);
+      fields.push(`password = $${paramIndex++}`);
+      values.push(hashedPassword);
+    }
+
+    if (fields.length === 0) {
+      return await this.findById(id);
+    }
+
+    fields.push('updated_at = CURRENT_TIMESTAMP');
+    values.push(id);
+
+    const result = await pool.query(
+      `UPDATE users SET ${fields.join(', ')} WHERE id = $${paramIndex} RETURNING id, email, name, currency, created_at`,
+      values
     );
     return result.rows[0];
   }

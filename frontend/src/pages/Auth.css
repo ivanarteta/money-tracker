@@ -18,7 +18,7 @@
 
 .auth-card h1 {
   text-align: center;
-  color: #4CAF50;
+  color: var(--color-primary);
   margin-bottom: 0.5rem;
 }
 
@@ -51,13 +51,13 @@
 
 .form-group input:focus {
   outline: none;
-  border-color: #4CAF50;
+  border-color: var(--color-primary);
 }
 
 .submit-btn {
   width: 100%;
   padding: 0.75rem;
-  background-color: #4CAF50;
+  background-color: var(--color-primary);
   color: white;
   border: none;
   border-radius: 5px;
@@ -68,7 +68,7 @@
 }
 
 .submit-btn:hover:not(:disabled) {
-  background-color: #45a049;
+  background-color: var(--color-primary-hover);
 }
 
 .submit-btn:disabled {
@@ -92,7 +92,7 @@
 }
 
 .auth-link a {
-  color: #4CAF50;
+  color: var(--color-primary);
   text-decoration: none;
   font-weight: 500;
 }

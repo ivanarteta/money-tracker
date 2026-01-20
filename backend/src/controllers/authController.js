@@ -3,7 +3,7 @@ import { User } from '../models/User.js';
 
 export const register = async (req, res) => {
   try {
-    const { email, password, name } = req.body;
+    const { email, password, name, currency } = req.body;
 
     // Verificar si el usuario ya existe
     const existingUser = await User.findByEmail(email);
@@ -12,7 +12,7 @@ export const register = async (req, res) => {
     }
 
     // Crear usuario
-    const user = await User.create(email, password, name);
+    const user = await User.create(email, password, name, currency || 'EUR');
 
     // Generar token JWT
     const token = jwt.sign(
@@ -27,7 +27,8 @@ export const register = async (req, res) => {
       user: {
         id: user.id,
         email: user.email,
-        name: user.name
+        name: user.name,
+        currency: user.currency
       }
     });
   } catch (error) {
@@ -65,7 +66,8 @@ export const login = async (req, res) => {
       user: {
         id: user.id,
         email: user.email,
-        name: user.name
+        name: user.name,
+        currency: user.currency || 'EUR'
       }
     });
   } catch (error) {
@@ -84,5 +86,29 @@ export const getProfile = async (req, res) => {
   } catch (error) {
     console.error('Error al obtener perfil:', error);
     res.status(500).json({ error: 'Error al obtener perfil' });
+  }
+};
+
+export const updateProfile = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { email, name, password, currency } = req.body;
+
+    // Si cambia email, validar que no exista
+    if (email) {
+      const existingUser = await User.findByEmail(email);
+      if (existingUser && existingUser.id !== userId) {
+        return res.status(400).json({ error: 'El correo electrónico ya está registrado' });
+      }
+    }
+
+    const updated = await User.updateById(userId, { email, name, password, currency });
+    if (!updated) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+    res.json(updated);
+  } catch (error) {
+    console.error('Error al actualizar perfil:', error);
+    res.status(500).json({ error: 'Error al actualizar perfil' });
   }
 };

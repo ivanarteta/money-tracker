@@ -13,9 +13,16 @@ const createTables = async () => {
         email VARCHAR(255) UNIQUE NOT NULL,
         password VARCHAR(255) NOT NULL,
         name VARCHAR(255) NOT NULL,
+        currency VARCHAR(3) NOT NULL DEFAULT 'EUR',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
+    `);
+
+    // Evolución: asegurar columna currency en instalaciones existentes
+    await client.query(`
+      ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS currency VARCHAR(3) NOT NULL DEFAULT 'EUR'
     `);
 
     // Tabla de movimientos (gastos e ingresos)

@@ -30,7 +30,7 @@ const Register = () => {
   return (
     <div className="auth-container">
       <div className="auth-card">
-        <h1>💰 Money Tracker</h1>
+        <h1>Money Tracker</h1>
         <h2>Crear Cuenta</h2>
         {error && <div className="error-message">{error}</div>}
         <form onSubmit={handleSubmit}>
