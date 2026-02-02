@@ -1,71 +1,79 @@
-version: '3.8'
+version: "3.8"
 
 services:
+  # =========================
   # Base de datos PostgreSQL
+  # =========================
   db:
     image: postgres:15-alpine
     container_name: money-tracker-db
+    restart: unless-stopped
     environment:
       POSTGRES_DB: money_tracker
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: money_tracker
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U money_tracker"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  # Backend API
+  # =========================
+  # Backend API (Node)
+  # =========================
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     container_name: money-tracker-backend
+    restart: unless-stopped
     environment:
+      NODE_ENV: production
+      PORT: 3000
+
       DB_HOST: db
       DB_PORT: 5432
       DB_NAME: money_tracker
-      DB_USER: postgres
-      DB_PASSWORD: postgres
-      JWT_SECRET: dev-secret-key-change-in-production
+      DB_USER: money_tracker
+      DB_PASSWORD: ${DB_PASSWORD}
+
+      JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRES_IN: 7d
-      PORT: 3000
-      NODE_ENV: development
+
       EMAIL_HOST: smtp.gmail.com
       EMAIL_PORT: 587
-      EMAIL_USER: ${EMAIL_USER:-}
-      EMAIL_PASSWORD: ${EMAIL_PASSWORD:-}
+      EMAIL_USER: ${EMAIL_USER}
+      EMAIL_PASSWORD: ${EMAIL_PASSWORD}
       EMAIL_FROM: noreply@money-tracker.com
-    ports:
-      - "3000:3000"
     depends_on:
       db:
         condition: service_healthy
-    volumes:
-      - ./backend:/app
-      - /app/node_modules
-    command: sh -c "node src/scripts/wait-for-db.js && npm run migrate && npm run dev"
+    expose:
+      - "3000"
+    command: >
+      sh -c "
+      node src/scripts/wait-for-db.js &&
+      npm run migrate &&
+      node dist/main.js
+      "
 
-  # Frontend
+  # =========================
+  # Frontend + Nginx
+  # =========================
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     container_name: money-tracker-frontend
-    ports:
-      - "5173:5173"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    environment:
-      - VITE_API_URL=http://localhost:3000/api
+    restart: unless-stopped
     depends_on:
       - backend
-    command: sh -c "npm install --include=optional --no-audit --no-fund && npm run dev -- --host"
+    ports:
+      - "80:80"
+    environment:
+      - API_URL=http://backend:3000
 
 volumes:
   postgres_data:
