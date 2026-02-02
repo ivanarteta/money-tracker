@@ -3,7 +3,7 @@ FROM node:20-slim AS builder
 WORKDIR /app
 
 # Copiar archivos de dependencias
-COPY package*.json package-lock.json ./
+COPY package*.json ./
 
 # Instalar dependencias
 RUN npm install --include=optional --no-audit --no-fund
