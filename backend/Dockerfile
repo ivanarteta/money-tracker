@@ -3,10 +3,8 @@ FROM node:20-alpine
 WORKDIR /app
 
 # Copiar archivos de dependencias
-COPY package*.json ./
-
-# Instalar dependencias
-RUN npm ci --only=production
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
 
 # Copiar código de la aplicación
 COPY . .

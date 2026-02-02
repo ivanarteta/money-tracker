@@ -3,7 +3,7 @@ FROM node:20-bullseye-slim AS builder
 WORKDIR /app
 
 # Copiar archivos de dependencias
-COPY package*.json ./
+COPY package*.json package-lock.json ./
 
 # Instalar dependencias
 RUN npm install --include=optional --no-audit --no-fund
