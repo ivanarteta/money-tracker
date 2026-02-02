@@ -13,4 +13,4 @@ COPY . .
 EXPOSE 3000
 
 # Comando para iniciar la aplicación
-CMD ["node", "src/server.js"]
+CMD ["node", "dist/index.js"]
