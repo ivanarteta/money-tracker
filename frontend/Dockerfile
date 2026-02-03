@@ -11,6 +11,10 @@ RUN npm install --include=optional --no-audit --no-fund
 # Copiar código fuente
 COPY . .
 
+# URL de la API en producción (misma origen, nginx hace proxy de /api al backend)
+ARG VITE_API_URL=/api
+ENV VITE_API_URL=$VITE_API_URL
+
 # Construir la aplicación
 RUN npm run build
 

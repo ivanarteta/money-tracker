@@ -66,14 +66,14 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        VITE_API_URL: /api
     container_name: money-tracker-frontend
     restart: unless-stopped
     depends_on:
       - backend
     ports:
       - "80:80"
-    environment:
-      - API_URL=http://backend:3000
 
 volumes:
   postgres_data:
