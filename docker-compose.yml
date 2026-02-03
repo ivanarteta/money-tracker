@@ -56,7 +56,7 @@ services:
       sh -c "
       node src/scripts/wait-for-db.js &&
       npm run migrate &&
-      node dist/main.js
+      node src/server.js
       "
 
   # =========================
