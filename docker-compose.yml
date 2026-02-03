@@ -95,9 +95,9 @@ services:
       - frontend
 
   # =========================
-  # Certbot (obtener/renovar certificados Let's Encrypt)
-  # Ejecutar una vez: docker compose run --rm certbot obtener
-  # Renovar: docker compose run --rm certbot renovar
+  # Certbot (Let's Encrypt)
+  # Obtener certificado (primera vez): docker compose run --rm certbot
+  # Renovar: docker compose run --rm certbot renew
   # =========================
   certbot:
     image: certbot/certbot:latest
@@ -105,25 +105,13 @@ services:
     volumes:
       - certbot_conf:/etc/letsencrypt
       - certbot_www:/var/www/certbot
-    entrypoint: "/bin/sh -c"
-    command:
-      - |
-        case "$${1:-obtener}" in
-          obtener)
-            certbot certonly --webroot -w /var/www/certbot \
-              --email $${CERTBOT_EMAIL} \
-              -d money-tracker.iartetadev.es \
-              --agree-tos --no-eff-email --non-interactive
-            ;;
-          renovar)
-            certbot renew
-            ;;
-          *)
-            exec certbot "$$@"
-            ;;
-        esac
     environment:
       - CERTBOT_EMAIL=${CERTBOT_EMAIL}
+    command: >
+      certonly --webroot -w /var/www/certbot
+      --email ${CERTBOT_EMAIL}
+      -d money-tracker.iartetadev.es
+      --agree-tos --no-eff-email --non-interactive
 
 volumes:
   postgres_data:
