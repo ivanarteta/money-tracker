@@ -60,7 +60,7 @@ services:
       "
 
   # =========================
-  # Frontend + Nginx
+  # Frontend + Nginx (solo red interna; el proxy expone 80/443)
   # =========================
   frontend:
     build:
@@ -72,8 +72,60 @@ services:
     restart: unless-stopped
     depends_on:
       - backend
+    expose:
+      - "80"
+
+  # =========================
+  # Proxy inverso (dominio + SSL con Certbot)
+  # money-tracker.iartetadev.es
+  # =========================
+  proxy:
+    build:
+      context: ./proxy
+      dockerfile: Dockerfile
+    container_name: money-tracker-proxy
+    restart: unless-stopped
     ports:
       - "80:80"
+      - "443:443"
+    volumes:
+      - certbot_conf:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    depends_on:
+      - frontend
+
+  # =========================
+  # Certbot (obtener/renovar certificados Let's Encrypt)
+  # Ejecutar una vez: docker compose run --rm certbot obtener
+  # Renovar: docker compose run --rm certbot renovar
+  # =========================
+  certbot:
+    image: certbot/certbot:latest
+    container_name: money-tracker-certbot
+    volumes:
+      - certbot_conf:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    entrypoint: "/bin/sh -c"
+    command:
+      - |
+        case "$${1:-obtener}" in
+          obtener)
+            certbot certonly --webroot -w /var/www/certbot \
+              --email $${CERTBOT_EMAIL} \
+              -d money-tracker.iartetadev.es \
+              --agree-tos --no-eff-email --non-interactive
+            ;;
+          renovar)
+            certbot renew
+            ;;
+          *)
+            exec certbot "$$@"
+            ;;
+        esac
+    environment:
+      - CERTBOT_EMAIL=${CERTBOT_EMAIL}
 
 volumes:
   postgres_data:
+  certbot_conf:
+  certbot_www:
