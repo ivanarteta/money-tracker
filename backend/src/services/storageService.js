@@ -16,7 +16,16 @@ function getBucket() {
   return process.env.MINIO_BUCKET || 'money-tracker';
 }
 
+function assertStorageConfig() {
+  if (process.env.NODE_ENV === 'production' && !useS3()) {
+    throw new Error(
+      'En producción el almacenamiento debe usar S3. Configura: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, S3_BUCKET y AWS_REGION en el entorno del backend.'
+    );
+  }
+}
+
 function getClient() {
+  assertStorageConfig();
   if (!client) {
     if (useS3()) {
       const endpoint = (process.env.S3_ENDPOINT || 's3.amazonaws.com').replace(/^https?:\/\//, '').split(':')[0];
