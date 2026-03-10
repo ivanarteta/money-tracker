@@ -1,0 +1,120 @@
+# Despliegue en servidor usando imágenes desde Docker Hub
+# Sustituye YOUR_DOCKERHUB_USER por tu usuario de Docker Hub
+#
+# En el servidor:
+#   1. Copia este archivo y el .env (o variables)
+#   2. docker compose -f docker-compose.hub.yml pull
+#   3. docker compose -f docker-compose.hub.yml up -d
+
+version: "3.8"
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: money-tracker-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: money_tracker
+      POSTGRES_USER: money_tracker
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U money_tracker"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    image: YOUR_DOCKERHUB_USER/money-tracker-backend:latest
+    container_name: money-tracker-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: money_tracker
+      DB_USER: money_tracker
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: 7d
+      EMAIL_HOST: smtp.gmail.com
+      EMAIL_PORT: 587
+      EMAIL_USER: ${EMAIL_USER}
+      EMAIL_PASSWORD: ${EMAIL_PASSWORD}
+      EMAIL_FROM: noreply@money-tracker.com
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minio}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minio123}
+      MINIO_BUCKET: money-tracker
+    depends_on:
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    expose:
+      - "3000"
+    command: >
+      sh -c "
+      node src/scripts/wait-for-db.js &&
+      npm run migrate &&
+      node src/server.js
+      "
+
+  frontend:
+    image: YOUR_DOCKERHUB_USER/money-tracker-frontend:latest
+    container_name: money-tracker-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    expose:
+      - "80"
+
+  proxy:
+    image: YOUR_DOCKERHUB_USER/money-tracker-proxy:latest
+    container_name: money-tracker-proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - certbot_conf:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    depends_on:
+      - frontend
+
+  minio:
+    image: minio/minio:latest
+    container_name: money-tracker-minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minio123}
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    expose:
+      - "9000"
+      - "9001"
+
+  certbot:
+    image: certbot/certbot:latest
+    container_name: money-tracker-certbot
+    volumes:
+      - certbot_conf:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    environment:
+      - CERTBOT_EMAIL=${CERTBOT_EMAIL}
+    command: >
+      certonly --webroot -w /var/www/certbot
+      --email ${CERTBOT_EMAIL}
+      -d money-tracker.iartetadev.es
+      --agree-tos --no-eff-email --non-interactive
+
+volumes:
+  postgres_data:
+  certbot_conf:
+  certbot_www:
+  minio_data:
