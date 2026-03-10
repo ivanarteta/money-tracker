@@ -86,6 +86,6 @@ En `.env` (o donde definas el entorno del compose) deberías tener al menos:
 - `JWT_SECRET`
 - `EMAIL_USER`, `EMAIL_PASSWORD`, `EMAIL_FROM`
 - `CERTBOT_EMAIL`
-- Opcional (MinIO): `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`
+- **S3 (bucket money-tracker-uploads):** `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` (ej. `eu-west-1`), `S3_BUCKET=money-tracker-uploads`
 
-Si no usas MinIO en producción, puedes quitar el servicio `minio` y las variables `MINIO_*` del servicio `backend` en `docker-compose.hub.yml`.
+Si usas S3, puedes quitar el servicio `minio` del compose; el backend ya no depende de él.

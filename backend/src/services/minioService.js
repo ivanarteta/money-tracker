@@ -1,21 +1,29 @@
 import * as Minio from 'minio';
 
-const BUCKET = process.env.MINIO_BUCKET || 'money-tracker';
+const BUCKET = process.env.MINIO_BUCKET || process.env.S3_BUCKET || 'money-tracker';
 
 let client = null;
 
 function getClient() {
   if (!client) {
-    const endPoint = (process.env.MINIO_ENDPOINT || 'minio').replace(/^https?:\/\//, '').split(':')[0];
-    const port = parseInt(process.env.MINIO_PORT || '9000', 10);
-    const useSSL = process.env.MINIO_USE_SSL === 'true';
-    client = new Minio.Client({
+    const endpoint = process.env.MINIO_ENDPOINT || process.env.S3_ENDPOINT || 'minio';
+    const endPoint = endpoint.replace(/^https?:\/\//, '').split(':')[0];
+    const port = parseInt(process.env.MINIO_PORT || process.env.S3_PORT || '9000', 10);
+    const useSSL = process.env.MINIO_USE_SSL === 'true' || process.env.S3_USE_SSL === 'true';
+    const accessKey = process.env.MINIO_ACCESS_KEY || process.env.AWS_ACCESS_KEY_ID || 'minio';
+    const secretKey = process.env.MINIO_SECRET_KEY || process.env.AWS_SECRET_ACCESS_KEY || 'minio123';
+    const region = process.env.MINIO_REGION || process.env.AWS_REGION;
+
+    const options = {
       endPoint,
       port,
       useSSL,
-      accessKey: process.env.MINIO_ACCESS_KEY || 'minio',
-      secretKey: process.env.MINIO_SECRET_KEY || 'minio123',
-    });
+      accessKey,
+      secretKey,
+    };
+    if (region) options.region = region;
+
+    client = new Minio.Client(options);
   }
   return client;
 }

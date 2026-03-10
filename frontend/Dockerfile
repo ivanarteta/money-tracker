@@ -8,6 +8,9 @@ COPY package*.json ./
 # Instalar dependencias (incl. devDependencies para el build)
 RUN npm ci
 
+# Asegurar binario nativo de Rollup para linux/amd64 (npm optional deps bug en Docker)
+RUN npm install @rollup/rollup-linux-x64-gnu@4.55.2 --no-save
+
 # Copiar código fuente
 COPY . .
 
