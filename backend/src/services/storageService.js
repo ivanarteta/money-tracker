@@ -1,29 +1,46 @@
+/**
+ * Servicio de almacenamiento de archivos (S3-compatible).
+ * Soporta MinIO (desarrollo) o AWS S3 (producción) según variables de entorno.
+ */
 import * as Minio from 'minio';
-
-const BUCKET = process.env.MINIO_BUCKET || process.env.S3_BUCKET || 'money-tracker';
 
 let client = null;
 
+/** true si debemos usar AWS S3 (credenciales o bucket S3 definidos) */
+function useS3() {
+  return !!(process.env.AWS_ACCESS_KEY_ID || process.env.S3_BUCKET);
+}
+
+function getBucket() {
+  if (useS3()) return process.env.S3_BUCKET || 'money-tracker-uploads';
+  return process.env.MINIO_BUCKET || 'money-tracker';
+}
+
 function getClient() {
   if (!client) {
-    const endpoint = process.env.MINIO_ENDPOINT || process.env.S3_ENDPOINT || 'minio';
-    const endPoint = endpoint.replace(/^https?:\/\//, '').split(':')[0];
-    const port = parseInt(process.env.MINIO_PORT || process.env.S3_PORT || '9000', 10);
-    const useSSL = process.env.MINIO_USE_SSL === 'true' || process.env.S3_USE_SSL === 'true';
-    const accessKey = process.env.MINIO_ACCESS_KEY || process.env.AWS_ACCESS_KEY_ID || 'minio';
-    const secretKey = process.env.MINIO_SECRET_KEY || process.env.AWS_SECRET_ACCESS_KEY || 'minio123';
-    const region = process.env.MINIO_REGION || process.env.AWS_REGION;
-
-    const options = {
-      endPoint,
-      port,
-      useSSL,
-      accessKey,
-      secretKey,
-    };
-    if (region) options.region = region;
-
-    client = new Minio.Client(options);
+    if (useS3()) {
+      const endpoint = (process.env.S3_ENDPOINT || 's3.amazonaws.com').replace(/^https?:\/\//, '').split(':')[0];
+      const port = parseInt(process.env.S3_PORT || '443', 10);
+      const region = process.env.AWS_REGION || process.env.MINIO_REGION || 'eu-west-1';
+      client = new Minio.Client({
+        endPoint: endpoint,
+        port,
+        useSSL: true,
+        accessKey: process.env.AWS_ACCESS_KEY_ID,
+        secretKey: process.env.AWS_SECRET_ACCESS_KEY,
+        region,
+      });
+    } else {
+      const endpoint = (process.env.MINIO_ENDPOINT || 'minio').replace(/^https?:\/\//, '').split(':')[0];
+      const port = parseInt(process.env.MINIO_PORT || '9000', 10);
+      client = new Minio.Client({
+        endPoint: endpoint,
+        port,
+        useSSL: process.env.MINIO_USE_SSL === 'true',
+        accessKey: process.env.MINIO_ACCESS_KEY || 'minio',
+        secretKey: process.env.MINIO_SECRET_KEY || 'minio123',
+      });
+    }
   }
   return client;
 }
@@ -32,10 +49,11 @@ function getClient() {
  * Asegura que el bucket existe; si no, lo crea.
  */
 export async function ensureBucket() {
+  const bucket = getBucket();
   const mc = getClient();
-  const exists = await mc.bucketExists(BUCKET);
+  const exists = await mc.bucketExists(bucket);
   if (!exists) {
-    await mc.makeBucket(BUCKET);
+    await mc.makeBucket(bucket);
   }
 }
 
@@ -50,8 +68,9 @@ export async function ensureBucket() {
 export async function uploadFile(userId, filename, buffer, contentType = 'application/pdf') {
   await ensureBucket();
   const mc = getClient();
+  const bucket = getBucket();
   const objectName = `${userId}/${filename}`;
-  await mc.putObject(BUCKET, objectName, buffer, buffer.length, { 'Content-Type': contentType });
+  await mc.putObject(bucket, objectName, buffer, buffer.length, { 'Content-Type': contentType });
   return { path: objectName, objectName };
 }
 
@@ -63,10 +82,11 @@ export async function uploadFile(userId, filename, buffer, contentType = 'applic
 export async function listUserFiles(userId) {
   await ensureBucket();
   const mc = getClient();
+  const bucket = getBucket();
   const prefix = `${userId}/`;
   const items = [];
   return new Promise((resolve, reject) => {
-    const stream = mc.listObjects(BUCKET, prefix, true);
+    const stream = mc.listObjects(bucket, prefix, true);
     stream.on('data', (obj) => {
       items.push({
         name: obj.name,
@@ -92,7 +112,8 @@ export async function getPresignedDownloadUrl(objectName, userId) {
     throw new Error('No autorizado');
   }
   const mc = getClient();
-  const url = await mc.presignedGetObject(BUCKET, objectName, 60 * 60); // 1 hora
+  const bucket = getBucket();
+  const url = await mc.presignedGetObject(bucket, objectName, 60 * 60); // 1 hora
   return url;
 }
 
@@ -108,5 +129,6 @@ export async function deleteUserFile(objectName, userId) {
     throw new Error('No autorizado');
   }
   const mc = getClient();
-  await mc.removeObject(BUCKET, objectName);
+  const bucket = getBucket();
+  await mc.removeObject(bucket, objectName);
 }

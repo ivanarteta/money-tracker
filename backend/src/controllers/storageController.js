@@ -1,5 +1,5 @@
 import multer from 'multer';
-import { uploadFile, listUserFiles, getPresignedDownloadUrl, deleteUserFile } from '../services/minioService.js';
+import { uploadFile, listUserFiles, getPresignedDownloadUrl, deleteUserFile } from '../services/storageService.js';
 import { Movement } from '../models/Movement.js';
 
 const PDF_MIMETYPE = 'application/pdf';
