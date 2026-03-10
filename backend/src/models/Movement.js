@@ -1,12 +1,12 @@
 import pool from '../config/database.js';
 
 export class Movement {
-  static async create(userId, type, amount, category, description, date) {
+  static async create(userId, type, amount, category, description, date, attachmentObjectName = null) {
     const result = await pool.query(
-      `INSERT INTO movements (user_id, type, amount, category, description, date)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO movements (user_id, type, amount, category, description, date, attachment_object_name)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [userId, type, amount, category, description, date]
+      [userId, type, amount, category, description, date, attachmentObjectName]
     );
     return result.rows[0];
   }
@@ -73,6 +73,10 @@ export class Movement {
       fields.push(`date = $${paramIndex++}`);
       values.push(updates.date);
     }
+    if (updates.attachmentObjectName !== undefined) {
+      fields.push(`attachment_object_name = $${paramIndex++}`);
+      values.push(updates.attachmentObjectName);
+    }
 
     if (fields.length === 0) {
       return await this.findById(id, userId);
@@ -110,5 +114,15 @@ export class Movement {
       [userId, startDate, endDate]
     );
     return result.rows;
+  }
+
+  /** Quita la referencia al archivo en todos los movimientos del usuario (al borrar el archivo en Storage). */
+  static async clearAttachmentByObjectName(objectName, userId) {
+    const result = await pool.query(
+      `UPDATE movements SET attachment_object_name = NULL, updated_at = CURRENT_TIMESTAMP
+       WHERE user_id = $1 AND attachment_object_name = $2`,
+      [userId, objectName]
+    );
+    return result.rowCount;
   }
 }

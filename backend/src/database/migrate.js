@@ -53,6 +53,12 @@ const createTables = async () => {
       CREATE INDEX IF NOT EXISTS idx_movements_user_date ON movements(user_id, date)
     `);
 
+    // Adjunto opcional: referencia al objeto en MinIO (userId/filename)
+    await client.query(`
+      ALTER TABLE movements
+      ADD COLUMN IF NOT EXISTS attachment_object_name VARCHAR(512) NULL
+    `);
+
     await client.query('COMMIT');
     console.log('✅ Tablas creadas exitosamente');
   } catch (error) {

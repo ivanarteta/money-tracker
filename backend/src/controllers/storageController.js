@@ -1,5 +1,6 @@
 import multer from 'multer';
 import { uploadFile, listUserFiles, getPresignedDownloadUrl, deleteUserFile } from '../services/minioService.js';
+import { Movement } from '../models/Movement.js';
 
 const PDF_MIMETYPE = 'application/pdf';
 const MAX_SIZE = 200 * 1024 * 1024;
@@ -82,7 +83,9 @@ export const deleteFile = async (req, res, next) => {
     if (!objectName) {
       return res.status(400).json({ error: 'objectName requerido' });
     }
-    await deleteUserFile(decodeURIComponent(objectName), userId);
+    const decoded = decodeURIComponent(objectName);
+    await deleteUserFile(decoded, userId);
+    await Movement.clearAttachmentByObjectName(decoded, userId);
     res.json({ message: 'Archivo eliminado' });
   } catch (err) {
     if (err.message === 'No autorizado') {

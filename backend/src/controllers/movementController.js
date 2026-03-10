@@ -1,15 +1,24 @@
 import { Movement } from '../models/Movement.js';
 
+const isValidAttachmentForUser = (objectName, userId) => {
+  if (!objectName || typeof objectName !== 'string') return true;
+  const prefix = `${userId}/`;
+  return objectName.startsWith(prefix) && !objectName.includes('..');
+};
+
 export const createMovement = async (req, res) => {
   try {
-    const { type, amount, category, description, date } = req.body;
+    const { type, amount, category, description, date, attachmentObjectName } = req.body;
     const userId = req.user.userId;
 
     if (!['expense', 'income'].includes(type)) {
       return res.status(400).json({ error: 'Tipo debe ser "expense" o "income"' });
     }
+    if (attachmentObjectName && !isValidAttachmentForUser(attachmentObjectName, userId)) {
+      return res.status(400).json({ error: 'El archivo adjunto no es válido' });
+    }
 
-    const movement = await Movement.create(userId, type, amount, category, description, date);
+    const movement = await Movement.create(userId, type, amount, category, description, date, attachmentObjectName || null);
     res.status(201).json(movement);
   } catch (error) {
     console.error('Error al crear movimiento:', error);
@@ -60,6 +69,9 @@ export const updateMovement = async (req, res) => {
 
     if (updates.type && !['expense', 'income'].includes(updates.type)) {
       return res.status(400).json({ error: 'Tipo debe ser "expense" o "income"' });
+    }
+    if (updates.attachmentObjectName !== undefined && !isValidAttachmentForUser(updates.attachmentObjectName, userId)) {
+      return res.status(400).json({ error: 'El archivo adjunto no es válido' });
     }
 
     const movement = await Movement.update(id, userId, updates);
