@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/authRoutes.js';
 import movementRoutes from './routes/movementRoutes.js';
 import reportRoutes from './routes/reportRoutes.js';
+import storageRoutes from './routes/storageRoutes.js';
 import './services/scheduledTasks.js'; // Iniciar tareas programadas
 
 dotenv.config();
@@ -20,6 +21,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/auth', authRoutes);
 app.use('/api/movements', movementRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/storage', storageRoutes);
 
 // Ruta de salud
 app.get('/health', (req, res) => {

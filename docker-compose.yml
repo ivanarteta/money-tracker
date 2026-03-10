@@ -1,119 +1,94 @@
-version: "3.8"
+version: '3.8'
 
 services:
-  # =========================
   # Base de datos PostgreSQL
-  # =========================
   db:
     image: postgres:15-alpine
     container_name: money-tracker-db
-    restart: unless-stopped
     environment:
       POSTGRES_DB: money_tracker
-      POSTGRES_USER: money_tracker
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U money_tracker"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  # =========================
-  # Backend API (Node)
-  # =========================
+  # Backend API
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: money-tracker-backend
-    restart: unless-stopped
     environment:
-      NODE_ENV: production
-      PORT: 3000
-
       DB_HOST: db
       DB_PORT: 5432
       DB_NAME: money_tracker
-      DB_USER: money_tracker
-      DB_PASSWORD: ${DB_PASSWORD}
-
-      JWT_SECRET: ${JWT_SECRET}
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      JWT_SECRET: dev-secret-key-change-in-production
       JWT_EXPIRES_IN: 7d
-
+      PORT: 3000
+      NODE_ENV: development
       EMAIL_HOST: smtp.gmail.com
       EMAIL_PORT: 587
-      EMAIL_USER: ${EMAIL_USER}
-      EMAIL_PASSWORD: ${EMAIL_PASSWORD}
+      EMAIL_USER: ${EMAIL_USER:-}
+      EMAIL_PASSWORD: ${EMAIL_PASSWORD:-}
       EMAIL_FROM: noreply@money-tracker.com
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: minio
+      MINIO_SECRET_KEY: minio123
+      MINIO_BUCKET: money-tracker
+    ports:
+      - "3000:3000"
     depends_on:
       db:
         condition: service_healthy
-    expose:
-      - "3000"
-    command: >
-      sh -c "
-      node src/scripts/wait-for-db.js &&
-      npm run migrate &&
-      node src/server.js
-      "
+      minio:
+        condition: service_started
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    command: sh -c "node src/scripts/wait-for-db.js && npm run migrate && npm run dev"
 
-  # =========================
-  # Frontend + Nginx (solo red interna; el proxy expone 80/443)
-  # =========================
+  # Frontend (usa /api para que el proxy de Vite envíe las peticiones al backend)
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
-      args:
-        VITE_API_URL: /api
+      dockerfile: Dockerfile.dev
     container_name: money-tracker-frontend
-    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=/api
+      - VITE_PROXY_TARGET=http://backend:3000
     depends_on:
       - backend
-    expose:
-      - "80"
+    command: sh -c "npm install --include=optional --no-audit --no-fund && npm run dev -- --host"
 
-  # =========================
-  # Proxy inverso (dominio + SSL con Certbot)
-  # money-tracker.iartetadev.es
-  # =========================
-  proxy:
-    build:
-      context: ./proxy
-      dockerfile: Dockerfile
-    container_name: money-tracker-proxy
+  minio:
+    image: minio/minio:latest
+    container_name: money-tracker-minio
     restart: unless-stopped
     ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - certbot_conf:/etc/letsencrypt
-      - certbot_www:/var/www/certbot
-    depends_on:
-      - frontend
-
-  # =========================
-  # Certbot (Let's Encrypt)
-  # Obtener certificado (primera vez): docker compose run --rm certbot
-  # Renovar: docker compose run --rm certbot renew
-  # =========================
-  certbot:
-    image: certbot/certbot:latest
-    container_name: money-tracker-certbot
-    volumes:
-      - certbot_conf:/etc/letsencrypt
-      - certbot_www:/var/www/certbot
+      - "9000:9000"
+      - "9001:9001"
     environment:
-      - CERTBOT_EMAIL=${CERTBOT_EMAIL}
-    command: >
-      certonly --webroot -w /var/www/certbot
-      --email ${CERTBOT_EMAIL}
-      -d money-tracker.iartetadev.es
-      --agree-tos --no-eff-email --non-interactive
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio123
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"  
 
 volumes:
   postgres_data:
-  certbot_conf:
-  certbot_www:
+  minio_data:

@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard';
 import Movements from './pages/Movements';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
+import Storage from './pages/Storage';
 import Layout from './components/Layout';
 
 const PrivateRoute = ({ children }) => {
@@ -37,6 +38,7 @@ function App() {
             <Route index element={<Dashboard />} />
             <Route path="movements" element={<Movements />} />
             <Route path="reports" element={<Reports />} />
+            <Route path="storage" element={<Storage />} />
             <Route path="settings" element={<Settings />} />
           </Route>
         </Routes>

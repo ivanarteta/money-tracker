@@ -34,6 +34,12 @@ const Layout = () => {
               Informes
             </Link>
             <Link
+              to="/storage"
+              className={location.pathname === '/storage' ? 'active' : ''}
+            >
+              Archivos
+            </Link>
+            <Link
               to="/settings"
               className={location.pathname === '/settings' ? 'active' : ''}
             >
