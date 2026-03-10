@@ -6,12 +6,16 @@ Aplicación de gestión personal de gastos e ingresos con arquitectura API-first
 
 - **Autenticación JWT**: Registro e inicio de sesión seguro
 - **Gestión de Movimientos**: CRUD completo para gastos e ingresos
+- **Adjuntos en movimientos**: Asociar un PDF a cada movimiento (subir desde la app o elegir uno ya guardado)
+- **Archivos / Storage**: Subir, listar, descargar y eliminar PDFs por usuario; modal con drag & drop
+- **Almacenamiento S3-compatible**: En desarrollo MinIO; en producción AWS S3 (bucket configurable)
 - **Informes**: Semanal, mensual y por rango de fechas
 - **Exportación a PDF**: Informes semanal, mensual y por rango
 - **Preferencias de usuario**: Edición de perfil y divisa de trabajo
 - **Dashboard visual**: Gráfica diaria del mes en curso (ingresos/gastos + balance acumulado)
 - **Notificaciones por Email**: Envío automático de informes periódicos
-- **Frontend Responsive**: Interfaz web moderna y adaptable
+- **Frontend responsive**: Interfaz web moderna y adaptable
+- **Producción**: Proxy nginx, dominio propio y SSL con Let's Encrypt (Certbot)
 - **API REST**: Preparada para consumo desde aplicaciones móviles
 
 ## Arquitectura
@@ -19,9 +23,10 @@ Aplicación de gestión personal de gastos e ingresos con arquitectura API-first
 - **Backend**: Node.js + Express + PostgreSQL
 - **Frontend**: React + Vite
 - **Autenticación**: JWT (JSON Web Tokens)
-- **Base de Datos**: PostgreSQL
-- **Tareas Programadas**: node-cron para envío de emails
-- **Contenedores**: Docker y Docker Compose
+- **Base de datos**: PostgreSQL
+- **Almacenamiento**: Servicio S3-compatible (MinIO en desarrollo, AWS S3 en producción)
+- **Tareas programadas**: node-cron para envío de emails
+- **Producción**: Docker Compose con proxy nginx (80/443), Certbot para SSL, opcionalmente imágenes en Docker Hub
 
 ## Inicio rápido (desarrollo local)
 
@@ -36,14 +41,14 @@ Aplicación de gestión personal de gastos e ingresos con arquitectura API-first
 
 2. **Configurar variables de entorno**
 
-   Crea un archivo `.env` en la raíz del proyecto (opcional para desarrollo, ya que docker-compose tiene valores por defecto):
+   Crea un archivo `.env` en la raíz del proyecto (opcional para desarrollo):
 
    ```env
    EMAIL_USER=tu-email@gmail.com
    EMAIL_PASSWORD=tu-app-password
    ```
 
-   > **Nota**: Para Gmail, necesitas generar una "Contraseña de aplicación" desde la configuración de tu cuenta.
+   > **Nota**: Para Gmail, genera una "Contraseña de aplicación" desde la configuración de tu cuenta.
 
 3. **Iniciar con Docker Compose**
 
@@ -51,14 +56,15 @@ Aplicación de gestión personal de gastos e ingresos con arquitectura API-first
    docker compose up -d
    ```
 
-   Esto iniciará:
-   - PostgreSQL en el puerto 5432
-   - Backend API en el puerto 3000
-   - Frontend en el puerto 5173
+   Se levantan:
+   - PostgreSQL (puerto 5432)
+   - Backend API (puerto 3000)
+   - Frontend con Vite (puerto 5173)
+   - MinIO (puertos 9000, 9001) para almacenamiento de archivos en desarrollo
 
-4. **Ejecutar migraciones de base de datos**
+4. **Migraciones**
 
-   Las migraciones se ejecutan automáticamente al iniciar el backend. Si necesitas ejecutarlas manualmente:
+   Se ejecutan al arrancar el backend. Manualmente:
 
    ```bash
    docker compose exec backend npm run migrate
@@ -68,18 +74,17 @@ Aplicación de gestión personal de gastos e ingresos con arquitectura API-first
 
    - Frontend: http://localhost:5173
    - Backend API: http://localhost:3000
-   - Health Check: http://localhost:3000/health
+   - Health: http://localhost:3000/health
+   - MinIO consola: http://localhost:9001 (usuario `minio`, contraseña `minio123`)
 
 ### Desarrollo sin Docker
-
-Si prefieres ejecutar sin Docker:
 
 #### Backend
 
 ```bash
 cd backend
 npm install
-cp .env.example .env  # Edita el archivo .env con tus configuraciones
+cp .env.example .env   # Configura DB, JWT, email y opcionalmente MinIO/S3
 npm run migrate
 npm run dev
 ```
@@ -99,137 +104,85 @@ npm run dev
 - `POST /api/auth/register` - Registro de usuario
 - `POST /api/auth/login` - Inicio de sesión
 - `GET /api/auth/profile` - Obtener perfil (requiere autenticación)
-- `PUT /api/auth/profile` - Actualizar perfil (name, email, password opcional, currency) (requiere autenticación)
+- `PUT /api/auth/profile` - Actualizar perfil (requiere autenticación)
 
 ### Movimientos
 
 - `GET /api/movements` - Listar movimientos (requiere autenticación)
-- `GET /api/movements?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD` - Listar por rango de fechas (requiere autenticación)
-- `POST /api/movements` - Crear movimiento (requiere autenticación)
-- `GET /api/movements/:id` - Obtener movimiento (requiere autenticación)
-- `PUT /api/movements/:id` - Actualizar movimiento (requiere autenticación)
-- `DELETE /api/movements/:id` - Eliminar movimiento (requiere autenticación)
+- `GET /api/movements?startDate=...&endDate=...` - Listar por rango
+- `POST /api/movements` - Crear movimiento (body puede incluir `attachmentObjectName` para asociar un archivo)
+- `GET /api/movements/:id` - Obtener movimiento
+- `PUT /api/movements/:id` - Actualizar movimiento (incl. `attachmentObjectName`)
+- `DELETE /api/movements/:id` - Eliminar movimiento
+
+### Storage (archivos por usuario)
+
+- `GET /api/storage` - Listar archivos del usuario (requiere autenticación)
+- `POST /api/storage/upload` - Subir PDF (multipart, campo `file`) (requiere autenticación)
+- `GET /api/storage/download/:objectName` - Obtener URL firmada de descarga (requiere autenticación)
+- `DELETE /api/storage/:objectName` - Eliminar archivo (requiere autenticación). Si el archivo estaba asociado a movimientos, se limpia la referencia.
 
 ### Informes
 
-- `GET /api/reports/weekly` - Informe semanal (requiere autenticación)
-- `GET /api/reports/monthly` - Informe mensual (requiere autenticación)
-- `GET /api/reports/range?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD` - Informe por rango (requiere autenticación)
-- `GET /api/reports/weekly/pdf` - Informe semanal PDF (requiere autenticación)
-- `GET /api/reports/monthly/pdf` - Informe mensual PDF (requiere autenticación)
-- `GET /api/reports/range/pdf?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD` - Informe por rango PDF (requiere autenticación)
+- `GET /api/reports/weekly` - Informe semanal
+- `GET /api/reports/monthly` - Informe mensual
+- `GET /api/reports/range?startDate=...&endDate=...` - Informe por rango
+- `GET /api/reports/weekly/pdf`, `monthly/pdf`, `range/pdf?...` - Versión PDF (requiere autenticación)
 
 ## Despliegue en producción
 
-### Construir imágenes Docker
+### Opción 1: Imágenes en Docker Hub (recomendado)
 
-#### Backend
+Las imágenes se construyen y publican en Docker Hub; en el servidor solo se hace `pull` y `up`. Ver **[DEPLOY-DOCKERHUB.md](DEPLOY-DOCKERHUB.md)** para:
+
+- Build y push de backend, frontend y proxy
+- Uso de `docker-compose.hub.yml` en el servidor
+- Variables de entorno (DB, JWT, email, **S3**, Certbot)
+- Obtención y renovación del certificado SSL con Certbot
+
+Resumen de comandos (sustituye `TU_USUARIO` por tu usuario de Docker Hub):
 
 ```bash
-cd backend
-docker build -t money-tracker-backend:latest .
+docker login
+docker build -t TU_USUARIO/money-tracker-backend:latest ./backend && docker push TU_USUARIO/money-tracker-backend:latest
+docker build -t TU_USUARIO/money-tracker-frontend:latest ./frontend && docker push TU_USUARIO/money-tracker-frontend:latest
+docker build -t TU_USUARIO/money-tracker-proxy:latest ./proxy && docker push TU_USUARIO/money-tracker-proxy:latest
 ```
 
-#### Frontend
+En el servidor, configura el `.env` (incluidas variables S3 y Certbot), sustituye en `docker-compose.hub.yml` el usuario de Docker Hub y ejecuta:
 
 ```bash
-cd frontend
-docker build -t money-tracker-frontend:latest .
+docker compose -f docker-compose.hub.yml pull
+docker compose -f docker-compose.hub.yml up -d
 ```
 
-### Variables de Entorno para Producción
+### Opción 2: Build en el servidor
 
-Asegúrate de configurar las siguientes variables de entorno en producción:
+Puedes usar `docker-compose.yml.prod` (o similar) que construye las imágenes en el servidor. Asegura tener configuradas las variables de entorno del backend (DB, JWT, email, **S3** en producción).
 
-**Backend (.env):**
+### Almacenamiento en producción (S3)
 
-```env
-DB_HOST=tu-host-postgresql
-DB_PORT=5432
-DB_NAME=money_tracker
-DB_USER=tu-usuario
-DB_PASSWORD=tu-contraseña-segura
-JWT_SECRET=tu-secret-key-muy-segura
-JWT_EXPIRES_IN=7d
-PORT=3000
-NODE_ENV=production
-EMAIL_HOST=smtp.tu-servidor.com
-EMAIL_PORT=587
-EMAIL_USER=tu-email@dominio.com
-EMAIL_PASSWORD=tu-contraseña
-EMAIL_FROM=noreply@tu-dominio.com
-```
+En producción el backend usa **AWS S3**. Configura en el entorno del contenedor backend:
 
-**Frontend (.env):**
+- `AWS_ACCESS_KEY_ID` y `AWS_SECRET_ACCESS_KEY` (credenciales IAM con permisos sobre el bucket)
+- `AWS_REGION` (ej. `eu-west-1`)
+- `S3_BUCKET` (ej. `money-tracker-uploads`)
 
-```env
-VITE_API_URL=https://api.tu-dominio.com/api
-```
-
-### Ejemplo de docker-compose para producción
-
-```yaml
-version: '3.8'
-
-services:
-  db:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_DB: money_tracker
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    restart: always
-
-  backend:
-    image: money-tracker-backend:latest
-    environment:
-      DB_HOST: db
-      DB_PORT: 5432
-      DB_NAME: money_tracker
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      JWT_SECRET: ${JWT_SECRET}
-      JWT_EXPIRES_IN: 7d
-      PORT: 3000
-      NODE_ENV: production
-      EMAIL_HOST: ${EMAIL_HOST}
-      EMAIL_PORT: ${EMAIL_PORT}
-      EMAIL_USER: ${EMAIL_USER}
-      EMAIL_PASSWORD: ${EMAIL_PASSWORD}
-      EMAIL_FROM: ${EMAIL_FROM}
-    depends_on:
-      - db
-    restart: always
-    command: sh -c "npm run migrate && npm start"
-
-  frontend:
-    image: money-tracker-frontend:latest
-    ports:
-      - "80:80"
-    depends_on:
-      - backend
-    restart: always
-
-volumes:
-  postgres_data:
-```
+Sin estas variables, en `NODE_ENV=production` el backend lanzará un error al usar storage. En desarrollo se usa MinIO si no hay variables S3.
 
 ## Configuración de email
 
-Para que las tareas programadas envíen emails, necesitas configurar:
+- **Gmail**: Genera una "Contraseña de aplicación" en tu cuenta de Google.
+- **Otros**: Ajusta `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USER`, `EMAIL_PASSWORD` y `EMAIL_FROM`.
 
-1. **Gmail**: Genera una "Contraseña de aplicación" desde tu cuenta de Google
-2. **Otros proveedores**: Ajusta `EMAIL_HOST` y `EMAIL_PORT` según tu proveedor
+Tareas programadas:
 
-Las tareas programadas están configuradas para:
-- **Informes semanales**: Cada lunes a las 9:00 AM
-- **Informes mensuales**: El día 1 de cada mes a las 9:00 AM
+- Informes semanales: cada lunes a las 9:00
+- Informes mensuales: día 1 de cada mes a las 9:00
 
 ## Preparado para móvil
 
-La API REST está diseñada para ser consumida por aplicaciones móviles. Todos los endpoints requieren autenticación mediante JWT en el header:
+La API REST puede consumirse desde apps móviles. Envío del token JWT:
 
 ```
 Authorization: Bearer <token>
@@ -238,28 +191,21 @@ Authorization: Bearer <token>
 ## Tecnologías utilizadas
 
 ### Backend
-- Node.js
-- Express.js
-- PostgreSQL
-- JWT (jsonwebtoken)
-- bcryptjs
-- express-validator
-- node-cron
-- nodemailer
-- pdfkit
+
+- Node.js, Express.js, PostgreSQL
+- JWT (jsonwebtoken), bcryptjs, express-validator
+- node-cron, nodemailer, pdfkit
+- MinIO (cliente S3-compatible), multer (subida de archivos)
 
 ### Frontend
-- React
-- Vite
-- React Router
-- Axios
-- Recharts
-- CSS3
+
+- React, Vite, React Router, Axios, Recharts, CSS3
 
 ### DevOps
-- Docker
-- Docker Compose
-- Nginx (producción)
+
+- Docker, Docker Compose
+- Nginx (proxy y servido del frontend en producción)
+- Certbot (Let's Encrypt)
 
 ## Estructura del proyecto
 
@@ -273,30 +219,40 @@ money-tracker/
 │   │   ├── middleware/
 │   │   ├── models/
 │   │   ├── routes/
-│   │   ├── services/
+│   │   ├── services/       # storageService.js (S3/MinIO), emailService, scheduledTasks
 │   │   └── server.js
 │   ├── Dockerfile
+│   ├── Dockerfile.dev
 │   └── package.json
 ├── frontend/
 │   ├── src/
 │   │   ├── components/
 │   │   ├── contexts/
-│   │   ├── pages/
+│   │   ├── pages/          # Dashboard, Movements, Reports, Settings, Storage
 │   │   ├── services/
 │   │   └── App.jsx
 │   ├── Dockerfile
 │   ├── Dockerfile.dev
+│   ├── nginx.conf
 │   └── package.json
-├── docker-compose.yml
+├── proxy/                   # Nginx + SSL (dominio, Certbot)
+│   ├── Dockerfile
+│   ├── entrypoint.sh
+│   └── nginx.conf
+├── docker-compose.yml       # Desarrollo (db, backend, frontend, minio)
+├── docker-compose.hub.yml   # Producción con imágenes Docker Hub + S3
+├── docker-compose.yml.prod # Producción build local (opcional)
+├── DEPLOY-DOCKERHUB.md      # Guía despliegue con Docker Hub y SSL
 └── README.md
 ```
 
 ## Seguridad
 
-- Contraseñas hasheadas con bcrypt
+- Contraseñas con bcrypt
 - Autenticación JWT
-- Validación de datos de entrada
-- Protección de rutas con middleware de autenticación
+- Validación de entrada (express-validator)
+- Rutas protegidas con middleware de autenticación
+- Storage: solo se permiten operaciones sobre objetos bajo `userId/`; en producción uso de S3 con IAM restrictivo recomendado
 
 ## Licencia
 
