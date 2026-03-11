@@ -35,11 +35,11 @@ services:
       JWT_EXPIRES_IN: 7d
       PORT: 3000
       NODE_ENV: development
-      EMAIL_HOST: smtp.gmail.com
+      EMAIL_HOST: "smtp-relay.brevo.com"
       EMAIL_PORT: 587
-      EMAIL_USER: ${EMAIL_USER:-}
-      EMAIL_PASSWORD: ${EMAIL_PASSWORD:-}
-      EMAIL_FROM: noreply@money-tracker.com
+      EMAIL_USER: "TU_USUARIO"
+      EMAIL_PASSWORD: "TU_SMTP_KEY"
+      EMAIL_FROM: "Money Tracker <no-reply@money-tracker.iartetadev.es>"
       MINIO_ENDPOINT: minio
       MINIO_PORT: 9000
       MINIO_ACCESS_KEY: minio

@@ -1,14 +1,70 @@
 import nodemailer from 'nodemailer';
 
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST,
-  port: process.env.EMAIL_PORT,
-  secure: false, // true para 465, false para otros puertos
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASSWORD,
-  },
-});
+function buildTransporter() {
+  // Opción 1 (recomendada para Brevo): variables separadas. Sin URL, sin problemas de codificación.
+  // Brevo → SMTP & API: usuario = email que muestra, contraseña = SMTP Key (no API key).
+  const smtpHost = process.env.SMTP_HOST?.trim();
+  const smtpPortRaw = process.env.SMTP_PORT?.trim();
+  const smtpUser = process.env.SMTP_USER?.trim();
+  const smtpPass = process.env.SMTP_PASS?.trim();
+  if (smtpHost && smtpPortRaw && smtpUser && smtpPass) {
+    const port = Number(smtpPortRaw);
+    if (!Number.isFinite(port)) throw new Error(`SMTP_PORT inválido: "${smtpPortRaw}"`);
+    const secure = port === 465;
+    return nodemailer.createTransport({
+      host: smtpHost,
+      port,
+      secure,
+      auth: { user: smtpUser, pass: smtpPass },
+      connectionTimeout: 10_000,
+      greetingTimeout: 10_000,
+      socketTimeout: 20_000,
+    });
+  }
+
+  // Opción 2: URL única (si el usuario tiene caracteres raros, mejor usar SMTP_HOST/USER/PASS).
+  const smtpUrlRaw = process.env.SMTP_URL?.trim();
+  if (smtpUrlRaw) {
+    const smtpUrl =
+      (smtpUrlRaw.startsWith('"') && smtpUrlRaw.endsWith('"')) ||
+      (smtpUrlRaw.startsWith("'") && smtpUrlRaw.endsWith("'"))
+        ? smtpUrlRaw.slice(1, -1)
+        : smtpUrlRaw;
+    return nodemailer.createTransport(smtpUrl);
+  }
+
+  // Opción 3: compatibilidad (EMAIL_*)
+  const host = process.env.EMAIL_HOST;
+  const portRaw = process.env.EMAIL_PORT;
+  const user = process.env.EMAIL_USER;
+  const pass = process.env.EMAIL_PASSWORD;
+
+  if (!host || !portRaw || !user || !pass) {
+    throw new Error(
+      'Configuración de email incompleta. Usa SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS (recomendado), ' +
+        'SMTP_URL, o EMAIL_HOST/EMAIL_PORT/EMAIL_USER/EMAIL_PASSWORD.'
+    );
+  }
+
+  const port = Number(portRaw);
+  if (!Number.isFinite(port)) throw new Error(`EMAIL_PORT inválido: "${portRaw}"`);
+  const secure =
+    process.env.EMAIL_SECURE != null
+      ? String(process.env.EMAIL_SECURE).toLowerCase() === 'true'
+      : port === 465;
+
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure,
+    auth: { user, pass },
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 20_000,
+  });
+}
+
+const transporter = buildTransporter();
 
 export const sendReportEmail = async (user, report) => {
   const periodLabel = report.period === 'weekly' ? 'Semanal' : 'Mensual';
@@ -75,6 +131,9 @@ export const sendReportEmail = async (user, report) => {
   `;
 
   try {
+    if (!process.env.EMAIL_FROM) {
+      throw new Error('Falta EMAIL_FROM (remitente).');
+    }
     await transporter.sendMail({
       from: process.env.EMAIL_FROM,
       to: user.email,
@@ -85,7 +144,7 @@ export const sendReportEmail = async (user, report) => {
     console.log(`✅ Email enviado a ${user.email}`);
     return true;
   } catch (error) {
-    console.error(`❌ Error al enviar email a ${user.email}:`, error);
+    console.error(`❌ Error al enviar email a ${user.email}:`, error?.message || error);
     return false;
   }
 };

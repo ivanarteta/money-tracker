@@ -31,11 +31,12 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRES_IN: 7d
-      EMAIL_HOST: smtp.gmail.com
-      EMAIL_PORT: 587
-      EMAIL_USER: ${EMAIL_USER}
-      EMAIL_PASSWORD: ${EMAIL_PASSWORD}
-      EMAIL_FROM: noreply@money-tracker.com
+      # Email (Brevo: SMTP & API → usuario = email, contraseña = SMTP Key; puerto 587)
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      EMAIL_FROM: ${EMAIL_FROM}
       # S3 (bucket money-tracker-uploads)
       S3_ENDPOINT: ${S3_ENDPOINT:-s3.amazonaws.com}
       S3_PORT: ${S3_PORT:-443}

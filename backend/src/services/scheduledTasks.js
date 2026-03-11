@@ -3,8 +3,8 @@ import pool from '../config/database.js';
 import { generateReportForEmail } from '../controllers/reportController.js';
 import { sendReportEmail } from './emailService.js';
 
-// Enviar informe semanal cada lunes a las 9:00 AM
-cron.schedule('0 9 * * 1', async () => {
+// Enviar informe semanal cada domingo a las 9:00 AM
+cron.schedule('0 9 * * 7', async () => {
   console.log('📧 Iniciando envío de informes semanales...');
   
   try {
@@ -54,5 +54,5 @@ cron.schedule('0 9 1 * *', async () => {
 });
 
 console.log('⏰ Tareas programadas configuradas:');
-console.log('  - Informes semanales: Lunes a las 9:00 AM');
+console.log('  - Informes semanales: Domingo a las 9:00 AM');
 console.log('  - Informes mensuales: Día 1 de cada mes a las 9:00 AM');
