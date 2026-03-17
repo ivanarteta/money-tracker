@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { formatMoney } from '../utils/money';
@@ -14,6 +14,8 @@ import {
   Legend
 } from 'recharts';
 import './Dashboard.css';
+
+const getBaseUrl = () => import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 const formatISODateLocal = (d) => {
   const y = d.getFullYear();
@@ -103,6 +105,21 @@ const Dashboard = () => {
   const [recentMovements, setRecentMovements] = useState([]);
   const [monthSeries, setMonthSeries] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [addModalOpen, setAddModalOpen] = useState(false);
+  const [addType, setAddType] = useState('expense'); // 'income' | 'expense'
+  const [saving, setSaving] = useState(false);
+  const [userFiles, setUserFiles] = useState([]);
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
+  const attachmentInputRef = useRef(null);
+  const [addForm, setAddForm] = useState({
+    amount: '',
+    category: '',
+    description: '',
+    date: new Date().toISOString().split('T')[0],
+    attachmentObjectName: ''
+  });
+
+  const addTitle = useMemo(() => (addType === 'income' ? 'Nuevo ingreso' : 'Nuevo gasto'), [addType]);
 
   useEffect(() => {
     fetchData();
@@ -137,23 +154,124 @@ const Dashboard = () => {
     }
   };
 
+  const fetchUserFiles = async () => {
+    try {
+      const res = await api.get('/storage');
+      setUserFiles(res.data.files || []);
+    } catch {
+      setUserFiles([]);
+    }
+  };
+
+  const openAddModal = (type) => {
+    setAddType(type);
+    setAddForm({
+      amount: '',
+      category: '',
+      description: '',
+      date: new Date().toISOString().split('T')[0],
+      attachmentObjectName: ''
+    });
+    fetchUserFiles();
+    setAddModalOpen(true);
+  };
+
+  const closeAddModal = () => {
+    if (saving) return;
+    setAddModalOpen(false);
+  };
+
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (!addModalOpen) return;
+      if (e.key === 'Escape') closeAddModal();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [addModalOpen, saving]);
+
+  const handleCreateMovement = async (e) => {
+    e.preventDefault();
+    if (saving) return;
+    setSaving(true);
+    try {
+      const payload = {
+        type: addType,
+        amount: addForm.amount,
+        category: addForm.category,
+        description: addForm.description || undefined,
+        date: addForm.date,
+        attachmentObjectName: addForm.attachmentObjectName || null
+      };
+      await api.post('/movements', payload);
+      setAddModalOpen(false);
+      await fetchData();
+    } catch (error) {
+      alert(error.response?.data?.error || 'Error al guardar movimiento');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleUploadNewAttachment = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || file.type !== 'application/pdf') {
+      if (file) alert('Solo se permiten archivos PDF.');
+      e.target.value = '';
+      return;
+    }
+    setUploadingAttachment(true);
+    try {
+      const formDataUpload = new FormData();
+      formDataUpload.append('file', file);
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${getBaseUrl()}/storage/upload`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formDataUpload,
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Error al subir');
+      }
+      const data = await res.json();
+      setAddForm((prev) => ({ ...prev, attachmentObjectName: data.objectName }));
+      setUserFiles((prev) => [...prev, { name: data.objectName, filename: data.filename }]);
+    } catch (err) {
+      alert(err.message || 'Error al subir el archivo');
+    } finally {
+      setUploadingAttachment(false);
+      e.target.value = '';
+    }
+  };
+
   if (loading) {
     return <div className="loading">Cargando...</div>;
   }
 
   return (
     <div className="dashboard">
-      <h1>Dashboard</h1>
+      <h1>Resumen</h1>
       
       {summary && (
         <div className="summary-cards">
           <div className="summary-card income">
-            <h3>Ingresos</h3>
+            <div className="summary-card-header">
+              <h3>Ingresos</h3>
+              <button type="button" className="summary-add-btn" onClick={() => openAddModal('income')} aria-label="Añadir ingreso">
+                +
+              </button>
+            </div>
             <p className="amount">{formatMoney(summary.income.total, user?.currency)}</p>
             <span className="count">{summary.income.count} movimientos</span>
           </div>
           <div className="summary-card expense">
-            <h3>Gastos</h3>
+            <div className="summary-card-header">
+              <h3>Gastos</h3>
+              <button type="button" className="summary-add-btn" onClick={() => openAddModal('expense')} aria-label="Añadir gasto">
+                +
+              </button>
+            </div>
             <p className="amount">{formatMoney(summary.expenses.total, user?.currency)}</p>
             <span className="count">{summary.expenses.count} movimientos</span>
           </div>
@@ -161,6 +279,121 @@ const Dashboard = () => {
             <h3>Balance</h3>
             <p className="amount">{formatMoney(summary.balance, user?.currency)}</p>
             <span className="count">Este mes</span>
+          </div>
+        </div>
+      )}
+
+      {addModalOpen && (
+        <div
+          className="dashboard-modal-overlay"
+          role="presentation"
+          aria-hidden="true"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) closeAddModal();
+          }}
+        >
+          <div className="dashboard-modal" role="dialog" aria-modal="true" aria-label={addTitle}>
+            <div className="dashboard-modal-header">
+              <div>
+                <div className="dashboard-modal-title">{addTitle}</div>
+                <div className="dashboard-modal-subtitle">Tipo fijo: {addType === 'income' ? 'Ingreso' : 'Gasto'}</div>
+              </div>
+              <button type="button" className="dashboard-modal-close" onClick={closeAddModal} aria-label="Cerrar" disabled={saving}>
+                ×
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateMovement} className="dashboard-modal-form">
+              <div className="dashboard-form-row">
+                <div className="dashboard-form-group">
+                  <label>Importe</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    value={addForm.amount}
+                    onChange={(e) => setAddForm((f) => ({ ...f, amount: e.target.value }))}
+                    required
+                    autoFocus
+                  />
+                </div>
+                <div className="dashboard-form-group">
+                  <label>Fecha</label>
+                  <input
+                    type="date"
+                    value={addForm.date}
+                    onChange={(e) => setAddForm((f) => ({ ...f, date: e.target.value }))}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="dashboard-form-group">
+                <label>Categoría</label>
+                <input
+                  type="text"
+                  value={addForm.category}
+                  onChange={(e) => setAddForm((f) => ({ ...f, category: e.target.value }))}
+                  required
+                  placeholder="Ej: Comida, Transporte, Salario..."
+                />
+              </div>
+
+              <div className="dashboard-form-group">
+                <label>Descripción</label>
+                <textarea
+                  rows="3"
+                  value={addForm.description}
+                  onChange={(e) => setAddForm((f) => ({ ...f, description: e.target.value }))}
+                  placeholder="Opcional..."
+                />
+              </div>
+
+              <div className="dashboard-form-group">
+                <label>Archivo adjunto (opcional)</label>
+                <select
+                  value={addForm.attachmentObjectName}
+                  onChange={(e) => setAddForm((f) => ({ ...f, attachmentObjectName: e.target.value }))}
+                >
+                  <option value="">Ninguno</option>
+                  {userFiles.map((f) => (
+                    <option key={f.name} value={f.name}>
+                      {f.filename}
+                    </option>
+                  ))}
+                </select>
+                <div className="dashboard-attachment-upload">
+                  <input
+                    ref={attachmentInputRef}
+                    type="file"
+                    accept=".pdf,application/pdf"
+                    onChange={handleUploadNewAttachment}
+                    disabled={uploadingAttachment || saving}
+                    className="dashboard-hidden-file-input"
+                  />
+                  <button
+                    type="button"
+                    className="btn-secondary btn-sm"
+                    onClick={() => attachmentInputRef.current?.click()}
+                    disabled={uploadingAttachment || saving}
+                  >
+                    {uploadingAttachment ? 'Subiendo...' : 'Subir PDF nuevo y asociar'}
+                  </button>
+                </div>
+                {(userFiles.length === 0 && !addForm.attachmentObjectName) && (
+                  <span className="dashboard-form-hint">Elige uno de la lista o sube un PDF nuevo.</span>
+                )}
+              </div>
+
+              <div className="dashboard-modal-actions">
+                <button type="button" className="btn-secondary" onClick={closeAddModal} disabled={saving}>
+                  Cancelar
+                </button>
+                <button type="submit" className="btn-primary" disabled={saving}>
+                  {saving ? 'Guardando...' : 'Crear'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
