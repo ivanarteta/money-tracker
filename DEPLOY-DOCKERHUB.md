@@ -64,17 +64,35 @@ docker push $USER/money-tracker-proxy:latest
    docker login
    ```
 
-4. Descargar y levantar:
+4. **Abrir puertos en el servidor (EC2 / firewall)**  
+   Asegúrate de que el **puerto 443 (HTTPS)** y el 80 (HTTP) estén abiertos. En EC2: Security Group → Inbound rules → añadir TCP 443 y 80 desde `0.0.0.0/0` (o tu IP) si quieres acceso público.
+
+5. Descargar y levantar:
    ```bash
    docker compose -f docker-compose.hub.yml pull
    docker compose -f docker-compose.hub.yml up -d
    ```
 
-5. Certificado SSL (primera vez):
+6. Certificado SSL (primera vez, **obligatorio** para HTTPS válido):
    ```bash
    docker compose -f docker-compose.hub.yml run --rm certbot
-   docker compose -f docker-compose.hub.yml exec proxy nginx -s reload
+   docker compose -f docker-compose.hub.yml restart proxy
    ```
+   O desde el repo: `./scripts/obtain-ssl.sh` (usa `docker-compose.hub.yml` por defecto; `COMPOSE_FILE=...` para otro archivo).  
+   Sin este paso, el proxy usará un certificado **autofirmado de 1 día**: el navegador mostrará "conexión no segura" y puede que la barra de direcciones siga en HTTP si 443 no está abierto.
+
+7. Renovación automática (Let's Encrypt caduca en 90 días). En el servidor, añade un cron:
+   ```bash
+   0 3 * * * cd /ruta/a/money-tracker && docker compose -f docker-compose.hub.yml run --rm certbot renew && docker compose -f docker-compose.hub.yml exec proxy nginx -s reload
+   ```
+
+---
+
+### Si ves "sitio no seguro" o HTTP en la barra
+
+- **Certificado de 1 día**: Es el autofirmado. Ejecuta los pasos 6 (certbot + restart proxy).
+- **Sigue en HTTP**: Comprueba que el **puerto 443** esté abierto en el Security Group de EC2. Si 443 está cerrado, el navegador no puede conectar por HTTPS y puede quedarse en HTTP o dar error.
+- **Certbot falla**: Comprueba que el dominio `money-tracker.iartetadev.es` apunte (DNS A) a la IP del servidor y que el puerto 80 sea accesible desde internet (Let's Encrypt valida por HTTP).
 
 ---
 

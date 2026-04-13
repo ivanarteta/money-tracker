@@ -41,6 +41,18 @@ const getDateRange = (period) => {
   };
 };
 
+const getPreviousMonthRange = () => {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth(); // 0=enero
+  const startDate = new Date(y, m - 1, 1);
+  const endDate = new Date(y, m, 0, 23, 59, 59, 999);
+  return {
+    startDate: startDate.toISOString().split('T')[0],
+    endDate: endDate.toISOString().split('T')[0],
+  };
+};
+
 const isValidISODateOnly = (value) => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
 
 const formatMoney = (value, currency = 'EUR', locale = 'es-ES') => {
@@ -383,7 +395,8 @@ export const generateReportForEmail = async (userId, period) => {
   const user = await User.findById(userId);
   if (!user) return null;
 
-  const { startDate, endDate } = getDateRange(period);
+  // El informe mensual se envía el día 1: debe cubrir el mes anterior completo.
+  const { startDate, endDate } = period === 'monthly' ? getPreviousMonthRange() : getDateRange(period);
   const report = await buildReport(userId, { startDate, endDate });
 
   return {
